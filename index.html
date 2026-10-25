@@ -1,201 +1,168 @@
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Dinosaur Game</title>
-
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            background: #f4f4f4;
-        }
-
-        h1 {
-            color: #333;
-        }
-
-        #game {
-            width: 600px;
-            max-width: 95%;
-            height: 200px;
-            background: white;
-            border: 2px solid #333;
-            margin: 20px auto;
-            position: relative;
-            overflow: hidden;
-        }
-
-        #dino {
-            position: absolute;
-            left: 50px;
-            bottom: 0;
-            font-size: 40px;
-        }
-
-        #obstacle {
-            position: absolute;
-            right: -30px;
-            bottom: 0;
-            font-size: 35px;
-        }
-
-        #ground {
-            position: absolute;
-            bottom: 0;
-            width: 100%;
-            border-top: 2px solid #555;
-        }
-
-        #message {
-            margin-top: 10px;
-            font-weight: bold;
-        }
-
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dino Dash — Dinosaur Jump Game</title>
+<style>
+  :root { color-scheme: light; --ink:#263238; --green:#2e7d32; --sky:#eaf7ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; padding:24px 14px; display:flex; justify-content:center; align-items:center;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--ink);
+    background:linear-gradient(180deg,#dff4ff 0%,#f6fbff 55%,#eff8e9 100%); }
+  main { width:min(760px,100%); text-align:center; }
+  h1 { margin:0 0 6px; font-size:clamp(1.8rem,5vw,2.7rem); }
+  .subtitle { margin:0 0 20px; color:#52636b; }
+  .hud { display:flex; justify-content:center; gap:12px; flex-wrap:wrap; margin:0 auto 12px; }
+  .stat { background:white; border:1px solid #d8e5eb; border-radius:12px; padding:9px 18px; min-width:115px; box-shadow:0 3px 0 #dce8ed; }
+  .stat small { display:block; color:#657780; font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; }
+  .stat strong { font-size:1.3rem; font-variant-numeric:tabular-nums; }
+  #game { height:260px; width:100%; position:relative; overflow:hidden; background:linear-gradient(#dff4ff 0 72%,#f5f8ec 72%);
+    border:2px solid #34464f; border-radius:16px; box-shadow:0 8px 0 #cfdee4; touch-action:manipulation; outline:none; cursor:pointer; }
+  #game:focus-visible { outline:4px solid #73b8f2; outline-offset:4px; }
+  .cloud { position:absolute; font-size:32px; opacity:.8; user-select:none; pointer-events:none; }
+  #cloud1 { top:25px; left:15%; } #cloud2 { top:55px; right:13%; font-size:25px; }
+  #ground { position:absolute; left:0; right:0; bottom:0; height:16px; border-top:3px solid #607d45;
+    background:repeating-linear-gradient(90deg,#a7c879 0 24px,#91b967 24px 45px); }
+  #dino { position:absolute; z-index:2; left:9%; bottom:12px; font-size:48px; line-height:1; width:52px; height:55px;
+    display:flex; align-items:center; justify-content:center; user-select:none; filter:drop-shadow(0 2px 0 #b9c9cc); }
+  #obstacle { position:absolute; z-index:2; left:100%; bottom:12px; font-size:40px; line-height:1; width:42px; height:48px;
+    display:flex; align-items:center; justify-content:center; user-select:none; }
+  #overlay { position:absolute; z-index:4; inset:0; display:flex; flex-direction:column; justify-content:center; align-items:center;
+    gap:8px; padding:18px; background:rgba(255,255,255,.68); backdrop-filter:blur(3px); }
+  #overlay.hidden { display:none; }
+  #overlay h2 { margin:0; font-size:clamp(1.4rem,4vw,2rem); }
+  #overlay p { margin:0; max-width:390px; }
+  button { border:0; border-radius:12px; padding:12px 22px; font:700 1rem inherit; font-size:1rem; font-weight:750;
+    color:white; background:var(--green); cursor:pointer; box-shadow:0 4px 0 #1b5e20; }
+  button:hover { background:#256b29; transform:translateY(-1px); }
+  button:active { transform:translateY(2px); box-shadow:0 2px 0 #1b5e20; }
+  #message { min-height:28px; margin:16px 0 8px; font-weight:650; }
+  .help { color:#52636b; font-size:.92rem; margin:0; }
+  kbd { display:inline-block; background:#fff; border:1px solid #cbd7dc; border-bottom-width:3px; border-radius:5px; padding:1px 6px; font:inherit; font-size:.85em; }
+  @media(max-width:480px) { #game { height:230px; } #dino { left:7%; } .stat { min-width:95px; padding:8px 12px; } }
+</style>
 </head>
-
 <body>
-
-    <h1>🦖 Dinosaur Jump Game</h1>
-    <p>Press SPACE or tap the game to jump!</p>
-
-    <h3>Score: <span id="score">0</span></h3>
-
-    <div id="game" tabindex="0" aria-label="Dinosaur jumping game">
-        <div id="dino">🦖</div>
-        <div id="obstacle">🌵</div>
-        <div id="ground"></div>
+<main>
+  <h1>🦖 Dino Dash</h1>
+  <p class="subtitle">A tiny dinosaur adventure. How far can you run?</p>
+  <section class="hud" aria-label="Game statistics">
+    <div class="stat"><small>Score</small><strong id="score">0</strong></div>
+    <div class="stat"><small>Best</small><strong id="best">0</strong></div>
+  </section>
+  <div id="game" tabindex="0" role="button" aria-label="Game area. Press Space, Arrow Up, or tap to jump.">
+    <div class="cloud" id="cloud1">☁️</div><div class="cloud" id="cloud2">☁️</div>
+    <div id="dino" aria-hidden="true">🦖</div>
+    <div id="obstacle" aria-hidden="true">🌵</div>
+    <div id="ground"></div>
+    <div id="overlay">
+      <h2 id="overlayTitle">Ready to dash?</h2>
+      <p id="overlayText">Jump over the cactus and keep your run going!</p>
+      <button id="startButton">Start Game</button>
     </div>
+  </div>
+  <p id="message" aria-live="polite">Press Start Game when you're ready.</p>
+  <p class="help">Jump: <kbd>Space</kbd> or <kbd>↑</kbd> · Or tap/click the game · Avoid the 🌵</p>
+</main>
+<script>
+(() => {
+  const game = document.querySelector('#game');
+  const dino = document.querySelector('#dino');
+  const obstacle = document.querySelector('#obstacle');
+  const scoreText = document.querySelector('#score');
+  const bestText = document.querySelector('#best');
+  const message = document.querySelector('#message');
+  const overlay = document.querySelector('#overlay');
+  const overlayTitle = document.querySelector('#overlayTitle');
+  const overlayText = document.querySelector('#overlayText');
+  const startButton = document.querySelector('#startButton');
 
-    <p id="message">Ready? Jump over the cactus!</p>
-    <button id="restart">Start / Restart Game</button>
+  let running = false, jumping = false, y = 0, velocity = 0, obstacleX = 0;
+  let score = 0, best = 0, lastTime = 0, raf = 0, speed = 290, passed = false;
+  const gravity = 1750, jumpPower = 690, groundHeight = 12;
+  try { best = Number(localStorage.getItem('dinoDashBest') || 0); } catch (_) {}
+  bestText.textContent = best;
 
-    <script>
-        const dino = document.getElementById("dino");
-        const obstacle = document.getElementById("obstacle");
-        const game = document.getElementById("game");
-        const scoreText = document.getElementById("score");
-        const message = document.getElementById("message");
-        const restartButton = document.getElementById("restart");
+  function reset() {
+    cancelAnimationFrame(raf);
+    y = 0; velocity = 0; jumping = false; score = 0; speed = 290; passed = false;
+    obstacleX = game.clientWidth + 40;
+    scoreText.textContent = '0';
+    dino.style.bottom = groundHeight + 'px';
+    obstacle.style.left = obstacleX + 'px';
+    message.textContent = 'Go! Time your jumps carefully.';
+    overlay.classList.add('hidden');
+    running = true; lastTime = 0;
+    game.focus({preventScroll:true});
+    raf = requestAnimationFrame(update);
+  }
+  function jump() {
+    if (!running) return;
+    if (!jumping) { velocity = jumpPower; jumping = true; }
+  }
+  function endGame() {
+    running = false;
+    cancelAnimationFrame(raf);
+    if (score > best) {
+      best = score; bestText.textContent = best;
+      try { localStorage.setItem('dinoDashBest', String(best)); } catch (_) {}
+    }
+    message.textContent = `Run over! You scored ${score}.`;
+    overlayTitle.textContent = 'Game Over!';
+    overlayText.textContent = `You scored ${score}. ${score >= best && score > 0 ? 'New best score!' : 'Fancy another run?'}`;
+    startButton.textContent = 'Play Again';
+    overlay.classList.remove('hidden');
+  }
+  function update(time) {
+    if (!running) return;
+    const dt = lastTime ? Math.min((time - lastTime) / 1000, 0.03) : 0;
+    lastTime = time;
 
-        let dinoY = 0;
-        let velocity = 0;
-        let obstacleX = 600;
-        let score = 0;
-        let running = false;
-        let jumping = false;
-        let lastTime = 0;
+    velocity -= gravity * dt;
+    y += velocity * dt;
+    if (y <= 0) { y = 0; velocity = 0; jumping = false; }
+    dino.style.bottom = (groundHeight + y) + 'px';
 
-        const gravity = 1800;
-        const jumpPower = 650;
-        const dinoHeight = 42;
+    obstacleX -= speed * dt;
+    if (obstacleX < -48) {
+      obstacleX = game.clientWidth + 20 + Math.random() * 100;
+      score++; passed = false;
+      scoreText.textContent = score;
+      speed = Math.min(480, 290 + score * 9);
+      if (score % 5 === 0) message.textContent = `Nice running! Speed level ${Math.floor((speed - 290) / 9) + 1}.`;
+    }
+    obstacle.style.left = obstacleX + 'px';
 
-        function jump() {
-            if (!running) {
-                startGame();
-                return;
-            }
+    const gameRect = game.getBoundingClientRect();
+    const dinoRect = dino.getBoundingClientRect();
+    const cactusRect = obstacle.getBoundingClientRect();
+    // Slightly forgiving hitboxes make the game feel fair.
+    const hitX = dinoRect.right - 10 > cactusRect.left + 7 &&
+                 dinoRect.left + 10 < cactusRect.right - 6;
+    const hitY = dinoRect.bottom - 7 > cactusRect.top + 5 &&
+                 dinoRect.top + 8 < cactusRect.bottom - 3;
+    if (hitX && hitY) { endGame(); return; }
+    raf = requestAnimationFrame(update);
+  }
 
-            if (!jumping) {
-                velocity = jumpPower;
-                jumping = true;
-            }
-        }
-
-        function startGame() {
-            dinoY = 0;
-            velocity = 0;
-            obstacleX = game.clientWidth;
-            score = 0;
-            jumping = false;
-            running = true;
-            lastTime = 0;
-
-            scoreText.textContent = score;
-            message.textContent = "Keep jumping!";
-            dino.style.bottom = "0px";
-            obstacle.style.left = obstacleX + "px";
-            restartButton.textContent = "Restart Game";
-
-            requestAnimationFrame(update);
-        }
-
-        function update(time) {
-            if (!running) return;
-
-            // Keep movement smooth on different computers
-            const dt = lastTime
-                ? Math.min((time - lastTime) / 1000, 0.03)
-                : 0;
-
-            lastTime = time;
-
-            // Make the dinosaur jump and fall
-            velocity -= gravity * dt;
-            dinoY += velocity * dt;
-
-            if (dinoY <= 0) {
-                dinoY = 0;
-                velocity = 0;
-                jumping = false;
-            }
-
-            dino.style.bottom = dinoY + "px";
-
-            // Move the cactus to the left
-            obstacleX -= 250 * dt;
-
-            if (obstacleX < -35) {
-                obstacleX = game.clientWidth;
-                score++;
-                scoreText.textContent = score;
-            }
-
-            obstacle.style.left = obstacleX + "px";
-
-            // Check whether the dinosaur hits the cactus
-            const dinoLeft = 50;
-            const dinoRight = 85;
-            const cactusLeft = obstacleX + 5;
-            const cactusRight = obstacleX + 30;
-
-            const verticalHit =
-                dinoY < dinoHeight - 5;
-
-            const horizontalHit =
-                dinoRight > cactusLeft &&
-                dinoLeft < cactusRight;
-
-            if (horizontalHit && verticalHit) {
-                running = false;
-                message.textContent =
-                    "Game Over! Your score: " + score;
-                restartButton.textContent = "Play Again";
-                return;
-            }
-
-            requestAnimationFrame(update);
-        }
-
-        document.addEventListener("keydown", function(event) {
-            if (event.code === "Space" || event.code === "ArrowUp") {
-                event.preventDefault();
-                if (!event.repeat) jump();
-            }
-        });
-
-        game.addEventListener("pointerdown", jump);
-        restartButton.addEventListener("click", startGame);
-
-    </script>
-
+  startButton.addEventListener('click', (event) => { event.stopPropagation(); reset(); });
+  game.addEventListener('pointerdown', (event) => {
+    if (event.target === startButton || !running) return;
+    jump();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.code === 'Space' || event.code === 'ArrowUp') {
+      event.preventDefault();
+      if (event.repeat) return;
+      if (!running) reset(); else jump();
+    }
+  });
+  // Keep the cactus positioned correctly if the browser window changes size.
+  window.addEventListener('resize', () => {
+    if (!running) obstacleX = game.clientWidth + 40;
+  });
+})();
+</script>
 </body>
 </html>
