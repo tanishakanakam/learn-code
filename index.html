@@ -20,6 +20,13 @@
   #game { height:260px; width:100%; position:relative; overflow:hidden; background:linear-gradient(#dff4ff 0 72%,#f5f8ec 72%);
     border:2px solid #34464f; border-radius:16px; box-shadow:0 8px 0 #cfdee4; touch-action:manipulation; outline:none; cursor:pointer; }
   #game:focus-visible { outline:4px solid #73b8f2; outline-offset:4px; }
+  #pauseButton { position:absolute; z-index:6; top:9px; right:9px; width:34px; height:34px;
+    padding:0; border-radius:9px; display:flex; align-items:center; justify-content:center;
+    font-size:15px; line-height:1; background:rgba(38,50,56,.82); color:#fff;
+    box-shadow:0 2px 0 rgba(0,0,0,.2); }
+  #pauseButton:hover { background:#263238; transform:none; }
+  #pauseButton:active { transform:translateY(1px); box-shadow:0 1px 0 rgba(0,0,0,.2); }
+  #pauseButton:disabled { opacity:.45; cursor:default; }
   .cloud { position:absolute; font-size:32px; opacity:.8; user-select:none; pointer-events:none; }
   #cloud1 { top:25px; left:15%; } #cloud2 { top:55px; right:13%; font-size:25px; }
   #ground { position:absolute; left:0; right:0; bottom:0; height:16px; border-top:3px solid #607d45;
@@ -52,6 +59,7 @@
     <div class="stat"><small>Best</small><strong id="best">0</strong></div>
   </section>
   <div id="game" tabindex="0" role="button" aria-label="Game area. Press Space, Arrow Up, or tap to jump.">
+    <button id="pauseButton" type="button" aria-label="Pause game" title="Pause game" disabled>Ⅱ</button>
     <div class="cloud" id="cloud1">☁️</div><div class="cloud" id="cloud2">☁️</div>
     <div id="dino" aria-hidden="true">🦖</div>
     <div id="obstacle" aria-hidden="true">🌵</div>
@@ -78,7 +86,8 @@
   const overlayText = document.querySelector('#overlayText');
   const startButton = document.querySelector('#startButton');
 
-  let running = false, jumping = false, y = 0, velocity = 0, obstacleX = 0;
+  const pauseButton = document.querySelector('#pauseButton');
+  let running = false, paused = false, jumping = false, y = 0, velocity = 0, obstacleX = 0;
   let score = 0, best = 0, lastTime = 0, raf = 0, speed = 290, passed = false;
   const gravity = 1750, jumpPower = 690, groundHeight = 12;
   try { best = Number(localStorage.getItem('dinoDashBest') || 0); } catch (_) {}
@@ -86,7 +95,11 @@
 
   function reset() {
     cancelAnimationFrame(raf);
-    y = 0; velocity = 0; jumping = false; score = 0; speed = 290; passed = false;
+    y = 0; velocity = 0; jumping = false; paused = false; score = 0; speed = 290; passed = false;
+    pauseButton.disabled = false;
+    pauseButton.textContent = 'Ⅱ';
+    pauseButton.setAttribute('aria-label', 'Pause game');
+    pauseButton.title = 'Pause game';
     obstacleX = game.clientWidth + 40;
     scoreText.textContent = '0';
     dino.style.bottom = groundHeight + 'px';
@@ -98,11 +111,39 @@
     raf = requestAnimationFrame(update);
   }
   function jump() {
-    if (!running) return;
+    if (!running || paused) return;
     if (!jumping) { velocity = jumpPower; jumping = true; }
+  }
+  function togglePause() {
+    if (!running) return;
+    paused = !paused;
+    if (paused) {
+      cancelAnimationFrame(raf);
+      pauseButton.textContent = '▶';
+      pauseButton.setAttribute('aria-label', 'Resume game');
+      pauseButton.title = 'Resume game';
+      message.textContent = 'Game paused. Press ▶ to carry on.';
+      overlayTitle.textContent = 'Paused';
+      overlayText.textContent = 'Take a breather — your run is waiting.';
+      startButton.textContent = 'Resume Game';
+      overlay.classList.remove('hidden');
+    } else {
+      overlay.classList.add('hidden');
+      pauseButton.textContent = 'Ⅱ';
+      pauseButton.setAttribute('aria-label', 'Pause game');
+      pauseButton.title = 'Pause game';
+      message.textContent = 'Back to it!';
+      lastTime = 0;
+      raf = requestAnimationFrame(update);
+      game.focus({preventScroll:true});
+    }
   }
   function endGame() {
     running = false;
+    paused = false;
+    pauseButton.disabled = true;
+    pauseButton.textContent = 'Ⅱ';
+    pauseButton.setAttribute('aria-label', 'Pause game');
     cancelAnimationFrame(raf);
     if (score > best) {
       best = score; bestText.textContent = best;
@@ -115,7 +156,7 @@
     overlay.classList.remove('hidden');
   }
   function update(time) {
-    if (!running) return;
+    if (!running || paused) return;
     const dt = lastTime ? Math.min((time - lastTime) / 1000, 0.03) : 0;
     lastTime = time;
 
@@ -146,15 +187,23 @@
     raf = requestAnimationFrame(update);
   }
 
-  startButton.addEventListener('click', (event) => { event.stopPropagation(); reset(); });
+  startButton.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (paused) togglePause(); else reset();
+  });
+  pauseButton.addEventListener('click', (event) => {
+    event.stopPropagation();
+    togglePause();
+  });
   game.addEventListener('pointerdown', (event) => {
-    if (event.target === startButton || !running) return;
+    if (event.target === startButton || event.target === pauseButton || !running || paused) return;
     jump();
   });
   document.addEventListener('keydown', (event) => {
     if (event.code === 'Space' || event.code === 'ArrowUp') {
       event.preventDefault();
       if (event.repeat) return;
+      if (paused) return;
       if (!running) reset(); else jump();
     }
   });
