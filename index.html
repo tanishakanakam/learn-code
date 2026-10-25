@@ -4,32 +4,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>My First Website</title>
+    <title>My Dinosaur Game</title>
 
     <style>
         body {
-            background-color: lightblue;
             font-family: Arial, sans-serif;
             text-align: center;
-            padding: 40px;
+            background: #f4f4f4;
         }
 
         h1 {
-            color: darkblue;
+            color: #333;
         }
 
-        p {
-            color: #333333;
-            font-size: 18px;
+        #game {
+            width: 600px;
+            max-width: 95%;
+            height: 200px;
+            background: white;
+            border: 2px solid #333;
+            margin: 20px auto;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #dino {
+            position: absolute;
+            left: 50px;
+            bottom: 0;
+            font-size: 40px;
+        }
+
+        #obstacle {
+            position: absolute;
+            right: -30px;
+            bottom: 0;
+            font-size: 35px;
+        }
+
+        #ground {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            border-top: 2px solid #555;
+        }
+
+        #message {
+            margin-top: 10px;
+            font-weight: bold;
         }
 
         button {
-            background-color: darkblue;
-            color: white;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 16px;
             cursor: pointer;
         }
     </style>
@@ -37,22 +64,138 @@
 
 <body>
 
-    <h1>Welcome to TANISHA'S Website!</h1>
+    <h1>🦖 Dinosaur Jump Game</h1>
+    <p>Press SPACE or tap the game to jump!</p>
 
-    <h2>About Me</h2>
+    <h3>Score: <span id="score">0</span></h3>
 
-    <p>Hello! I'm learning how to create my own website.</p>
+    <div id="game" tabindex="0" aria-label="Dinosaur jumping game">
+        <div id="dino">🦖</div>
+        <div id="obstacle">🌵</div>
+        <div id="ground"></div>
+    </div>
 
-    <p>This is my first webpage using HTML and CSS.</p>
+    <p id="message">Ready? Jump over the cactus!</p>
+    <button id="restart">Start / Restart Game</button>
 
-    <a href="https://www.google.com">Visit Google</a>
+    <script>
+        const dino = document.getElementById("dino");
+        const obstacle = document.getElementById("obstacle");
+        const game = document.getElementById("game");
+        const scoreText = document.getElementById("score");
+        const message = document.getElementById("message");
+        const restartButton = document.getElementById("restart");
 
-    <br><br>
+        let dinoY = 0;
+        let velocity = 0;
+        let obstacleX = 600;
+        let score = 0;
+        let running = false;
+        let jumping = false;
+        let lastTime = 0;
 
-    <button onclick="alert('Hello! You clicked the button!')">
-        Click Me!
-    </button>
+        const gravity = 1800;
+        const jumpPower = 650;
+        const dinoHeight = 42;
+
+        function jump() {
+            if (!running) {
+                startGame();
+                return;
+            }
+
+            if (!jumping) {
+                velocity = jumpPower;
+                jumping = true;
+            }
+        }
+
+        function startGame() {
+            dinoY = 0;
+            velocity = 0;
+            obstacleX = game.clientWidth;
+            score = 0;
+            jumping = false;
+            running = true;
+            lastTime = 0;
+
+            scoreText.textContent = score;
+            message.textContent = "Keep jumping!";
+            dino.style.bottom = "0px";
+            obstacle.style.left = obstacleX + "px";
+            restartButton.textContent = "Restart Game";
+
+            requestAnimationFrame(update);
+        }
+
+        function update(time) {
+            if (!running) return;
+
+            // Keep movement smooth on different computers
+            const dt = lastTime
+                ? Math.min((time - lastTime) / 1000, 0.03)
+                : 0;
+
+            lastTime = time;
+
+            // Make the dinosaur jump and fall
+            velocity -= gravity * dt;
+            dinoY += velocity * dt;
+
+            if (dinoY <= 0) {
+                dinoY = 0;
+                velocity = 0;
+                jumping = false;
+            }
+
+            dino.style.bottom = dinoY + "px";
+
+            // Move the cactus to the left
+            obstacleX -= 250 * dt;
+
+            if (obstacleX < -35) {
+                obstacleX = game.clientWidth;
+                score++;
+                scoreText.textContent = score;
+            }
+
+            obstacle.style.left = obstacleX + "px";
+
+            // Check whether the dinosaur hits the cactus
+            const dinoLeft = 50;
+            const dinoRight = 85;
+            const cactusLeft = obstacleX + 5;
+            const cactusRight = obstacleX + 30;
+
+            const verticalHit =
+                dinoY < dinoHeight - 5;
+
+            const horizontalHit =
+                dinoRight > cactusLeft &&
+                dinoLeft < cactusRight;
+
+            if (horizontalHit && verticalHit) {
+                running = false;
+                message.textContent =
+                    "Game Over! Your score: " + score;
+                restartButton.textContent = "Play Again";
+                return;
+            }
+
+            requestAnimationFrame(update);
+        }
+
+        document.addEventListener("keydown", function(event) {
+            if (event.code === "Space" || event.code === "ArrowUp") {
+                event.preventDefault();
+                if (!event.repeat) jump();
+            }
+        });
+
+        game.addEventListener("pointerdown", jump);
+        restartButton.addEventListener("click", startGame);
+
+    </script>
 
 </body>
 </html>
-
