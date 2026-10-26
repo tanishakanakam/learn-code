@@ -117,7 +117,7 @@
       <div class="field">
         <label for="roomCode">Friend's room code</label>
         <div class="join-row">
-          <input id="roomCode" maxlength="12" placeholder="e.g. DINO42" autocapitalize="characters">
+          <input id="roomCode" maxlength="12" placeholder="e.g. DINO42" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go">
           <button id="joinButton" type="button">Join</button>
         </div>
       </div>
@@ -126,7 +126,7 @@
         <button id="copyRoomButton" type="button" style="background:#546e7a;box-shadow:0 4px 0 #37474f">Copy code</button>
       </div>
       <p class="room-line" id="roomStatus" aria-live="polite">You're playing solo. Create a room to get a code.</p>
-      <p class="note">Online play uses your internet connection and a free PeerJS connection service. Keep the room creator’s game open while your friend joins. Some restrictive networks may prevent peer-to-peer connections.</p>
+      <p class="note">Room codes are not case-sensitive, and the box keeps the case you type. Both players need internet. The host must press Create room and keep that game open while the friend joins. Some school/work networks, VPNs, or strict routers can block peer-to-peer connections.</p>
     </div>
   </section>
 </main>
@@ -156,16 +156,16 @@
 
   const skinCatalog = [
     {id:'dino',name:'Dino',emoji:'🦖',cost:0},
-    {id:'dragon',name:'Dragon',emoji:'🐉',cost:10},
+    {id:'deer',name:'Deer',emoji:'🦌',cost:10},
     {id:'alien',name:'Alien',emoji:'👾',cost:20},
     {id:'turtle',name:'Turtle',emoji:'🐢',cost:30},
     {id:'fox',name:'Fox',emoji:'🦊',cost:40},
     {id:'unicorn',name:'Unicorn',emoji:'🦄',cost:50},
-    {id:'stego',name:'Stegosaurus',emoji:'🦖',cost:65},
-    {id:'raptor',name:'Velociraptor',emoji:'🦖',cost:85},
-    {id:'triceratops',name:'Triceratops',emoji:'🦖',cost:105},
-    {id:'ankylosaurus',name:'Ankylosaurus',emoji:'🦖',cost:125},
-    {id:'spinosaurus',name:'Spinosaurus',emoji:'🦖',cost:145},
+    {id:'stego',name:'Seal',emoji:'🦭',cost:60},
+    {id:'raptor',name:'Sloth',emoji:'🦥',cost:70},
+    {id:'triceratops',name:'Flamingo',emoji:'🦩',cost:80},
+    {id:'ankylosaurus',name:'Peacock',emoji:'🦚',cost:90},
+    {id:'spinosaurus',name:'Badger',emoji:'🦡',cost:100},
     {id:'pterodactyl',name:'Pterodactyl',emoji:'🦕',cost:165},
     {id:'baby-dino',name:'Baby Dino',emoji:'🦕',cost:185},
     {id:'fossil-dino',name:'Fossil Dino',emoji:'🦖',cost:210},
@@ -190,7 +190,7 @@
     {id:'hedgehog',name:'Hedgehog',emoji:'🦔',cost:240},
     {id:'hamster',name:'Hamster',emoji:'🐹',cost:250},
     {id:'rabbit',name:'Rabbit',emoji:'🐰',cost:260},
-    {id:'deer',name:'Deer',emoji:'🦌',cost:270},
+    {id:'dragon',name:'Dragon',emoji:'🐉',cost:270},
     {id:'wolf',name:'Wolf',emoji:'🐺',cost:280},
     {id:'horse',name:'Horse',emoji:'🐴',cost:290},
     {id:'pufferfish',name:'Pufferfish',emoji:'🐡',cost:300},
@@ -202,11 +202,6 @@
   ];
   const skins = Object.fromEntries(skinCatalog.map(skin => [skin.id, skin.emoji]));
   const dinoSkinFilters = {
-    stego:'hue-rotate(70deg) saturate(1.4) drop-shadow(0 2px 0 #b9c9cc)',
-    raptor:'hue-rotate(145deg) saturate(1.6) drop-shadow(0 2px 0 #b9c9cc)',
-    triceratops:'hue-rotate(210deg) saturate(1.5) drop-shadow(0 2px 0 #b9c9cc)',
-    ankylosaurus:'hue-rotate(280deg) saturate(1.5) drop-shadow(0 2px 0 #b9c9cc)',
-    spinosaurus:'hue-rotate(20deg) saturate(1.8) drop-shadow(0 2px 0 #b9c9cc)',
     pterodactyl:'hue-rotate(165deg) saturate(1.5) drop-shadow(0 2px 0 #b9c9cc)',
     'baby-dino':'hue-rotate(320deg) saturate(1.5) drop-shadow(0 2px 0 #b9c9cc)',
     'fossil-dino':'grayscale(1) sepia(.35) drop-shadow(0 2px 0 #b9c9cc)'
@@ -460,7 +455,7 @@
       setRoomStatus('Player disconnected. You are no longer connected to the room.');
       if (role === 'host') message.textContent = 'Your friend disconnected. You can keep playing solo.';
     });
-    conn.on('error', err => setRoomStatus(`Connection error: ${err?.message || 'please try again'}`));
+    conn.on('error', err => setRoomStatus(`Connection error (${err?.type || 'network'}): ${err?.message || 'please try again'}. Keep both games open and check your internet connection.`));
   }
   function destroyNetwork() {
     connected = false; remoteState = null;
@@ -614,6 +609,18 @@
     const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     return 'DINO' + Array.from({length:4}, () => alphabet[Math.floor(Math.random()*alphabet.length)]).join('');
   }
+  // Multiple STUN choices can help browsers discover a direct route on more networks.
+  // This still cannot bypass every firewall/NAT; that would require a TURN relay.
+  const peerOptions = {
+    debug: 1,
+    config: {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun.cloudflare.com:3478' }
+      ]
+    }
+  };
   let peerLibraryLoading = false;
   let peerLibraryCallbacks = [];
   function loadPeerLibrary(callback) {
@@ -622,23 +629,42 @@
     if (peerLibraryLoading) return;
     peerLibraryLoading = true;
     setRoomStatus('Loading online multiplayer…');
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js';
-    script.onload = () => {
-      peerLibraryLoading = false;
-      const callbacks = peerLibraryCallbacks.splice(0);
-      if (typeof window.Peer === 'function') callbacks.forEach(fn => fn());
-      else {
-        setRoomStatus('Could not load multiplayer. Check your internet connection and try again.');
-        createRoomButton.disabled = false; joinButton.disabled = false;
+    createRoomButton.disabled = true;
+    joinButton.disabled = true;
+    const sources = [
+      'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js',
+      'https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js'
+    ];
+    const trySource = index => {
+      if (index >= sources.length) {
+        peerLibraryLoading = false;
+        peerLibraryCallbacks = [];
+        setRoomStatus('Could not load multiplayer from either CDN. Check your internet connection or try another browser/network.');
+        createRoomButton.disabled = false;
+        joinButton.disabled = false;
+        return;
       }
+      const script = document.createElement('script');
+      script.src = sources[index];
+      script.onload = () => {
+        if (typeof window.Peer === 'function') {
+          peerLibraryLoading = false;
+          const callbacks = peerLibraryCallbacks.splice(0);
+          createRoomButton.disabled = false;
+          joinButton.disabled = false;
+          callbacks.forEach(fn => fn());
+        } else {
+          script.remove();
+          trySource(index + 1);
+        }
+      };
+      script.onerror = () => {
+        script.remove();
+        trySource(index + 1);
+      };
+      document.head.appendChild(script);
     };
-    script.onerror = () => {
-      peerLibraryLoading = false; peerLibraryCallbacks = [];
-      setRoomStatus('Could not load multiplayer. Check your internet connection and try again.');
-      createRoomButton.disabled = false; joinButton.disabled = false;
-    };
-    document.head.appendChild(script);
+    trySource(0);
   }
   function createRoom() {
     createRoomButton.disabled = true;
@@ -660,7 +686,7 @@
       attempts++;
       roomCode = randomRoomCode();
       roomCodeInput.value = roomCode;
-      const thisPeer = new Peer('dinodash-' + roomCode.toLowerCase(), {debug:1});
+      const thisPeer = new Peer('dinodash-' + roomCode.toLowerCase(), peerOptions);
       peer = thisPeer;
       let retrying = false;
       thisPeer.on('open', () => {
@@ -703,16 +729,18 @@
       setRoomStatus('Could not load the online connection library. Check your internet connection.');
       return;
     }
-    const code = roomCodeInput.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0,12);
+    // Keep the user's entered code as-is in the box. Room IDs are matched
+    // case-insensitively internally so uppercase and lowercase codes both work.
+    const code = roomCodeInput.value.trim().replace(/[^a-zA-Z0-9]/g, '').slice(0,12);
     if (!code) { joinButton.disabled = false; setRoomStatus('Enter your friend’s room code first.'); return; }
     destroyNetwork();
-    role = 'guest'; roomCode = code; roomCodeInput.value = code;
+    role = 'guest'; roomCode = code;
     hostName = 'Host'; hostSkin = 'dino';
     running = false; paused = false; gameOver = false;
     setRoomStatus(`Connecting to room ${code}…`);
     setOverlay('Joining room…', 'Looking for your friend’s game.', 'Connecting…', true);
     joinButton.disabled = true;
-    peer = new Peer(undefined, {debug:1});
+    peer = new Peer(undefined, peerOptions);
     const thisPeer = peer;
     thisPeer.on('open', () => {
       if (peer !== thisPeer) return;
@@ -724,8 +752,9 @@
       // A timeout helps show a clear message if the code is wrong or the host is offline.
       window.setTimeout(() => {
         if (peer === thisPeer && !connected) {
-          setRoomStatus(`Could not connect to ${code}. Check the code and make sure your friend has the game open.`);
-          setOverlay('Could not join', 'Check the room code and ask your friend to create the room again if needed.', 'Try Again');
+          joinButton.disabled = false;
+          setRoomStatus(`Could not connect to ${code}. Ask your friend to create the room and keep their game open. If it still fails, one of the networks may be blocking the PeerJS/WebRTC connection.`);
+          setOverlay('Could not join', 'Check the room code, keep the host game open, and try again. If the connection still fails, try another browser or network.', 'Try Again');
         }
       }, 12000);
     });
