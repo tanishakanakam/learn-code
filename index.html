@@ -31,10 +31,15 @@
   #cloud1 { top:25px; left:15%; } #cloud2 { top:55px; right:13%; font-size:25px; }
   #ground { position:absolute; left:0; right:0; bottom:0; height:16px; border-top:3px solid #607d45;
     background:repeating-linear-gradient(90deg,#a7c879 0 24px,#91b967 24px 45px); }
-  #dino { position:absolute; z-index:2; left:9%; bottom:12px; font-size:48px; line-height:1; width:52px; height:55px;
+  .runner { position:absolute; z-index:2; bottom:12px; font-size:44px; line-height:1; width:52px; height:55px;
     display:flex; align-items:center; justify-content:center; user-select:none; filter:drop-shadow(0 2px 0 #b9c9cc); }
+  #dino { left:18%; transform:scaleX(-1); }
+  #friendDino { left:72%; transform:translateX(-50%) scaleX(-1); opacity:.95; }
   #obstacle { position:absolute; z-index:2; left:100%; bottom:12px; font-size:40px; line-height:1; width:42px; height:48px;
     display:flex; align-items:center; justify-content:center; user-select:none; }
+  .lane-label { position:absolute; z-index:1; top:8px; font-size:.7rem; font-weight:800; letter-spacing:.08em; color:#607d8b; opacity:.85; }
+  #youLabel { left:18%; transform:translateX(-15%); }
+  #friendLabel { left:72%; transform:translateX(-50%); }
   #overlay { position:absolute; z-index:4; inset:0; display:flex; flex-direction:column; justify-content:center; align-items:center;
     gap:8px; padding:18px; background:rgba(255,255,255,.68); backdrop-filter:blur(3px); }
   #overlay.hidden { display:none; }
@@ -46,8 +51,24 @@
   button:active { transform:translateY(2px); box-shadow:0 2px 0 #1b5e20; }
   #message { min-height:28px; margin:16px 0 8px; font-weight:650; }
   .help { color:#52636b; font-size:.92rem; margin:0; }
+  .panels { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:24px; text-align:left; }
+  .panel { background:rgba(255,255,255,.9); border:1px solid #d8e5eb; border-radius:16px; padding:16px; box-shadow:0 4px 0 #dce8ed; min-width:0; }
+  .panel h2 { font-size:1.15rem; margin:0 0 10px; }
+  .skins { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+  .skin { background:#f5fafc; color:#263238; border:2px solid #d8e5eb; box-shadow:none; padding:8px 4px; border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; min-width:0; min-height:82px; }
+  .skin .emoji { font-size:27px; }
+  .skin small { font-size:.68rem; font-weight:650; text-align:center; overflow-wrap:anywhere; line-height:1.2; }
+  .skin.selected { border-color:#2e7d32; background:#e8f5e9; }
+  .skin:disabled { opacity:.55; cursor:not-allowed; }
+  .field { display:flex; flex-direction:column; gap:5px; margin-top:12px; min-width:0; }
+  .field label { font-size:.82rem; font-weight:700; }
+  input { width:100%; min-width:0; border:1px solid #cbd7dc; border-radius:9px; padding:10px; font:inherit; background:white; color:#263238; }
+  .join-row { display:flex; gap:7px; }
+  .join-row button { padding:10px 12px; white-space:nowrap; font-size:.9rem; }
+  .room-line { margin:10px 0 0; font-size:.85rem; color:#52636b; overflow-wrap:anywhere; }
+  .note { margin:10px 0 0; color:#657780; font-size:.78rem; line-height:1.4; }
   kbd { display:inline-block; background:#fff; border:1px solid #cbd7dc; border-bottom-width:3px; border-radius:5px; padding:1px 6px; font:inherit; font-size:.85em; }
-  @media(max-width:480px) { #game { height:230px; } #dino { left:7%; } .stat { min-width:95px; padding:8px 12px; } }
+  @media(max-width:560px) { .panels { grid-template-columns:1fr; } .skins { grid-template-columns:repeat(3,minmax(0,1fr)); } #game { height:230px; } #dino { left:18%; transform:scaleX(-1); } #friendDino { left:72%; transform:translateX(-50%) scaleX(-1); } .stat { min-width:95px; padding:8px 12px; } }
 </style>
 </head>
 <body>
@@ -61,7 +82,10 @@
   <div id="game" tabindex="0" role="button" aria-label="Game area. Press Space, Arrow Up, or tap to jump.">
     <button id="pauseButton" type="button" aria-label="Pause game" title="Pause game" disabled>Ⅱ</button>
     <div class="cloud" id="cloud1">☁️</div><div class="cloud" id="cloud2">☁️</div>
-    <div id="dino" aria-hidden="true">🦖</div>
+    <div class="lane-label" id="youLabel">YOU</div>
+    <div class="lane-label" id="friendLabel">FRIEND</div>
+    <div class="runner" id="dino" aria-hidden="true">🦖</div>
+    <div class="runner" id="friendDino" aria-hidden="true">🦕</div>
     <div id="obstacle" aria-hidden="true">🌵</div>
     <div id="ground"></div>
     <div id="overlay">
@@ -71,13 +95,51 @@
     </div>
   </div>
   <p id="message" aria-live="polite">Press Start Game when you're ready.</p>
-  <p class="help">Jump: <kbd>Space</kbd> or <kbd>↑</kbd> · Or tap/click the game · Avoid the 🌵</p>
+  <p class="help">Jump: <kbd>Space</kbd> or <kbd>↑</kbd> · Tap/click the game · Dodge rocks, logs, flames and more!</p>
+
+  <section class="panels">
+    <div class="panel">
+      <h2>🛍️ Skin Shop</h2>
+      <p class="note" style="margin-top:0">Pick from 44 character skins, including new dinosaur species. Earn coins by finishing runs to unlock more.</p>
+      <div class="skins" id="skins" aria-label="Dinosaur and animal skins"></div>
+      <div class="hud" style="justify-content:flex-start;margin:12px 0 0">
+        <div class="stat"><small>Your coins</small><strong id="coins">0 🪙</strong></div>
+      </div>
+      <div class="field">
+        <label for="username">Username</label>
+        <input id="username" maxlength="18" placeholder="Type your username" autocomplete="nickname">
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>👥 Play with a friend</h2>
+      <p class="note" style="margin-top:0">Create a room code to share, or enter a friend's code to set up the same room.</p>
+      <div class="field">
+        <label for="roomCode">Friend's room code</label>
+        <div class="join-row">
+          <input id="roomCode" maxlength="12" placeholder="e.g. DINO42" autocapitalize="characters">
+          <button id="joinButton" type="button">Join</button>
+        </div>
+      </div>
+      <div class="join-row" style="margin-top:10px">
+        <button id="createRoomButton" type="button">Create room</button>
+        <button id="copyRoomButton" type="button" style="background:#546e7a;box-shadow:0 4px 0 #37474f">Copy code</button>
+      </div>
+      <p class="room-line" id="roomStatus" aria-live="polite">You're playing solo. Create a room to get a code.</p>
+      <p class="note">Online play uses your internet connection and a free PeerJS connection service. Keep the room creator’s game open while your friend joins. Some restrictive networks may prevent peer-to-peer connections.</p>
+    </div>
+  </section>
 </main>
 <script>
 (() => {
   const game = document.querySelector('#game');
   const dino = document.querySelector('#dino');
+  const friendDino = document.querySelector('#friendDino');
   const obstacle = document.querySelector('#obstacle');
+  const usernameInput = document.querySelector('#username');
+  const roomCodeInput = document.querySelector('#roomCode');
+  const roomStatus = document.querySelector('#roomStatus');
+  const coinsText = document.querySelector('#coins');
   const scoreText = document.querySelector('#score');
   const bestText = document.querySelector('#best');
   const message = document.querySelector('#message');
@@ -85,37 +147,363 @@
   const overlayTitle = document.querySelector('#overlayTitle');
   const overlayText = document.querySelector('#overlayText');
   const startButton = document.querySelector('#startButton');
-
   const pauseButton = document.querySelector('#pauseButton');
-  let running = false, paused = false, jumping = false, y = 0, velocity = 0, obstacleX = 0;
-  let score = 0, best = 0, lastTime = 0, raf = 0, speed = 290, passed = false;
-  const gravity = 1750, jumpPower = 690, groundHeight = 12;
-  try { best = Number(localStorage.getItem('dinoDashBest') || 0); } catch (_) {}
-  bestText.textContent = best;
+  const youLabel = document.querySelector('#youLabel');
+  const friendLabel = document.querySelector('#friendLabel');
+  const joinButton = document.querySelector('#joinButton');
+  const createRoomButton = document.querySelector('#createRoomButton');
+  const copyRoomButton = document.querySelector('#copyRoomButton');
 
+  const skinCatalog = [
+    {id:'dino',name:'Dino',emoji:'🦖',cost:0},
+    {id:'dragon',name:'Dragon',emoji:'🐉',cost:10},
+    {id:'alien',name:'Alien',emoji:'👾',cost:20},
+    {id:'turtle',name:'Turtle',emoji:'🐢',cost:30},
+    {id:'fox',name:'Fox',emoji:'🦊',cost:40},
+    {id:'unicorn',name:'Unicorn',emoji:'🦄',cost:50},
+    {id:'stego',name:'Stegosaurus',emoji:'🦖',cost:65},
+    {id:'raptor',name:'Velociraptor',emoji:'🦖',cost:85},
+    {id:'triceratops',name:'Triceratops',emoji:'🦖',cost:105},
+    {id:'ankylosaurus',name:'Ankylosaurus',emoji:'🦖',cost:125},
+    {id:'spinosaurus',name:'Spinosaurus',emoji:'🦖',cost:145},
+    {id:'pterodactyl',name:'Pterodactyl',emoji:'🦕',cost:165},
+    {id:'baby-dino',name:'Baby Dino',emoji:'🦕',cost:185},
+    {id:'fossil-dino',name:'Fossil Dino',emoji:'🦖',cost:210},
+    {id:'penguin',name:'Penguin',emoji:'🐧',cost:60},
+    {id:'cat',name:'Cat',emoji:'🐱',cost:70},
+    {id:'dog',name:'Dog',emoji:'🐶',cost:80},
+    {id:'panda',name:'Panda',emoji:'🐼',cost:90},
+    {id:'koala',name:'Koala',emoji:'🐨',cost:100},
+    {id:'lion',name:'Lion',emoji:'🦁',cost:110},
+    {id:'tiger',name:'Tiger',emoji:'🐯',cost:120},
+    {id:'monkey',name:'Monkey',emoji:'🐵',cost:130},
+    {id:'frog',name:'Frog',emoji:'🐸',cost:140},
+    {id:'octopus',name:'Octopus',emoji:'🐙',cost:150},
+    {id:'shark',name:'Shark',emoji:'🦈',cost:160},
+    {id:'whale',name:'Whale',emoji:'🐳',cost:170},
+    {id:'crab',name:'Crab',emoji:'🦀',cost:180},
+    {id:'bee',name:'Bee',emoji:'🐝',cost:190},
+    {id:'butterfly',name:'Butterfly',emoji:'🦋',cost:200},
+    {id:'owl',name:'Owl',emoji:'🦉',cost:210},
+    {id:'eagle',name:'Eagle',emoji:'🦅',cost:220},
+    {id:'parrot',name:'Parrot',emoji:'🦜',cost:230},
+    {id:'hedgehog',name:'Hedgehog',emoji:'🦔',cost:240},
+    {id:'hamster',name:'Hamster',emoji:'🐹',cost:250},
+    {id:'rabbit',name:'Rabbit',emoji:'🐰',cost:260},
+    {id:'deer',name:'Deer',emoji:'🦌',cost:270},
+    {id:'wolf',name:'Wolf',emoji:'🐺',cost:280},
+    {id:'horse',name:'Horse',emoji:'🐴',cost:290},
+    {id:'pufferfish',name:'Pufferfish',emoji:'🐡',cost:300},
+    {id:'crocodile',name:'Crocodile',emoji:'🐊',cost:310},
+    {id:'giraffe',name:'Giraffe',emoji:'🦒',cost:320},
+    {id:'zebra',name:'Zebra',emoji:'🦓',cost:330},
+    {id:'elephant',name:'Elephant',emoji:'🐘',cost:340},
+    {id:'robot',name:'Robot',emoji:'🤖',cost:350}
+  ];
+  const skins = Object.fromEntries(skinCatalog.map(skin => [skin.id, skin.emoji]));
+  const dinoSkinFilters = {
+    stego:'hue-rotate(70deg) saturate(1.4) drop-shadow(0 2px 0 #b9c9cc)',
+    raptor:'hue-rotate(145deg) saturate(1.6) drop-shadow(0 2px 0 #b9c9cc)',
+    triceratops:'hue-rotate(210deg) saturate(1.5) drop-shadow(0 2px 0 #b9c9cc)',
+    ankylosaurus:'hue-rotate(280deg) saturate(1.5) drop-shadow(0 2px 0 #b9c9cc)',
+    spinosaurus:'hue-rotate(20deg) saturate(1.8) drop-shadow(0 2px 0 #b9c9cc)',
+    pterodactyl:'hue-rotate(165deg) saturate(1.5) drop-shadow(0 2px 0 #b9c9cc)',
+    'baby-dino':'hue-rotate(320deg) saturate(1.5) drop-shadow(0 2px 0 #b9c9cc)',
+    'fossil-dino':'grayscale(1) sepia(.35) drop-shadow(0 2px 0 #b9c9cc)'
+  };
+  const obstacleCatalog = [
+    {id:'cactus', name:'Cactus', emoji:'🌵', width:42, height:48, fontSize:40, lift:0},
+    {id:'rock', name:'Rock', emoji:'🪨', width:44, height:32, fontSize:34, lift:0},
+    {id:'log', name:'Rolling log', emoji:'🪵', width:50, height:33, fontSize:38, lift:0},
+    {id:'crate', name:'Crate', emoji:'📦', width:42, height:42, fontSize:36, lift:0},
+    {id:'flame', name:'Flames', emoji:'🔥', width:40, height:36, fontSize:38, lift:0},
+    {id:'brick', name:'Brick wall', emoji:'🧱', width:46, height:43, fontSize:38, lift:0},
+    {id:'crystal', name:'Crystal', emoji:'💎', width:38, height:36, fontSize:34, lift:0},
+    {id:'mushroom', name:'Giant mushroom', emoji:'🍄', width:42, height:38, fontSize:36, lift:0},
+    {id:'bone', name:'Dino bone', emoji:'🦴', width:42, height:29, fontSize:34, lift:0},
+    {id:'bird', name:'Flying bird', emoji:'🦅', width:46, height:28, fontSize:34, lift:58},
+    {id:'meteor', name:'Meteor', emoji:'☄️', width:42, height:40, fontSize:36, lift:28},
+    {id:'mud', name:'Mud pile', emoji:'🟤', width:40, height:29, fontSize:32, lift:0}
+  ];
+  const skinGrid = document.querySelector('#skins');
+  for (const skin of skinCatalog) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'skin';
+    button.dataset.skin = skin.id;
+    button.dataset.cost = String(skin.cost);
+    button.dataset.name = skin.name;
+    const emoji = document.createElement('span');
+    emoji.className = 'emoji';
+    emoji.textContent = skin.emoji;
+    const label = document.createElement('small');
+    label.textContent = skin.cost === 0 ? `${skin.name} · Free` : `${skin.name} · ${skin.cost} 🪙`;
+    button.append(emoji, label);
+    skinGrid.appendChild(button);
+  }
+  const ownedSkins = new Set(['dino']);
+  const gravity = 1750, jumpPower = 690, groundHeight = 12;
+  let running = false, paused = false, gameOver = false, jumping1 = false, jumping2 = false;
+  let y1 = 0, vy1 = 0, y2 = 0, vy2 = 0, obstacleX = 0;
+  let currentObstacleType = obstacleCatalog[0];
+  let score = 0, best = 0, coins = 0, lastTime = 0, raf = 0, speed = 290, lastBroadcast = 0;
+  let selectedSkin = 'dino', roomCode = '', role = 'solo';
+  let peer = null, connection = null, connected = false;
+  let guestName = 'Friend', guestSkin = 'dino', hostName = 'Host', hostSkin = 'dino';
+  let remoteState = null, remoteStateAt = 0, remoteAnim = 0, roundId = 0, awardedRemoteRounds = new Set();
+
+  try {
+    best = Number(localStorage.getItem('dinoDashBest') || 0);
+    coins = Number(localStorage.getItem('dinoDashCoins') || 0);
+    selectedSkin = localStorage.getItem('dinoDashSkin') || 'dino';
+    const owned = JSON.parse(localStorage.getItem('dinoDashOwned') || '["dino"]');
+    owned.forEach(s => ownedSkins.add(s));
+    if (!ownedSkins.has(selectedSkin)) selectedSkin = 'dino';
+    usernameInput.value = localStorage.getItem('dinoDashUsername') || '';
+  } catch (_) {}
+  bestText.textContent = best;
+  coinsText.textContent = `${coins} 🪙`;
+
+  function myName() { return usernameInput.value.trim().slice(0, 18) || 'Player'; }
+  function persistProgress() {
+    try {
+      localStorage.setItem('dinoDashCoins', String(coins));
+      localStorage.setItem('dinoDashSkin', selectedSkin);
+      localStorage.setItem('dinoDashOwned', JSON.stringify([...ownedSkins]));
+      localStorage.setItem('dinoDashUsername', usernameInput.value.trim());
+    } catch (_) {}
+  }
+  function refreshSkins() {
+    document.querySelectorAll('.skin').forEach(button => {
+      const id = button.dataset.skin, cost = Number(button.dataset.cost), owned = ownedSkins.has(id);
+      const name = button.dataset.name || id;
+      button.classList.toggle('selected', id === selectedSkin);
+      button.disabled = !owned && coins < cost;
+      const label = button.querySelector('small');
+      if (id === selectedSkin) label.textContent = `${name} ✓`;
+      else if (owned) label.textContent = `${name} · Owned`;
+      else label.textContent = `${name} · ${cost} 🪙`;
+    });
+  }
+  function syncLabels() {
+    if (role === 'guest') {
+      youLabel.textContent = hostName.toUpperCase().slice(0, 18);
+      friendLabel.textContent = `${myName()} (YOU)`.toUpperCase().slice(0, 21);
+      setRunnerSkin(dino, hostSkin);
+      setRunnerSkin(friendDino, selectedSkin);
+    } else {
+      youLabel.textContent = `${myName()} (YOU)`.toUpperCase().slice(0, 21);
+      friendLabel.textContent = connected ? guestName.toUpperCase().slice(0, 18) : 'FRIEND';
+      setRunnerSkin(dino, selectedSkin);
+      setRunnerSkin(friendDino, guestSkin || 'dino');
+    }
+  }
+  function setOverlay(title, text, buttonText, buttonDisabled = false) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    startButton.textContent = buttonText;
+    startButton.disabled = buttonDisabled;
+    overlay.classList.remove('hidden');
+  }
+  function setRoomStatus(text) { roomStatus.textContent = text; }
+  function setRunnerSkin(element, skinId) {
+    element.dataset.skin = skinId || 'dino';
+    element.textContent = skins[skinId] || '🦖';
+    element.style.filter = dinoSkinFilters[skinId] || '';
+  }
+  function applyObstacleAppearance() {
+    const type = currentObstacleType || obstacleCatalog[0];
+    obstacle.textContent = type.emoji;
+    obstacle.style.width = type.width + 'px';
+    obstacle.style.height = type.height + 'px';
+    obstacle.style.fontSize = type.fontSize + 'px';
+    obstacle.style.bottom = (groundHeight + type.lift) + 'px';
+    obstacle.setAttribute('aria-label', type.name);
+  }
+  function chooseNextObstacle() {
+    const options = obstacleCatalog.filter(type => type.id !== currentObstacleType.id);
+    currentObstacleType = options[Math.floor(Math.random() * options.length)] || obstacleCatalog[0];
+    applyObstacleAppearance();
+    if (currentObstacleType.id === 'bird') {
+      message.textContent = 'Flying bird ahead! Stay low to avoid it.';
+    } else if (currentObstacleType.id === 'meteor') {
+      message.textContent = 'Watch out for a floating meteor!';
+    } else {
+      message.textContent = `Obstacle ahead: ${currentObstacleType.name}!`;
+    }
+  }
+  function send(data) {
+    if (connection && connection.open) {
+      try { connection.send(data); } catch (_) {}
+    }
+  }
+  function statePacket() {
+    return {
+      type:'state', running, paused, gameOver, score, obstacleX, speed, obstacleType:currentObstacleType.id,
+      y1, vy1, y2, vy2, hostName:myName(), hostSkin:selectedSkin,
+      guestName, guestSkin, roundId,
+      gameWidth:game.clientWidth, earned:Math.max(1, Math.floor(score / 2) + 1)
+    };
+  }
+  function broadcastState(force = false) {
+    if (!connected || role !== 'host' || !connection || !connection.open) return;
+    try { connection.send(statePacket()); } catch (_) {}
+  }
+  function beginRemoteRenderer() {
+    cancelAnimationFrame(remoteAnim);
+    const render = () => {
+      if (role !== 'guest' || !connected) return;
+      if (remoteState) {
+        const s = remoteState;
+        const elapsed = (s.running && !s.paused && !s.gameOver) ? Math.min((performance.now() - remoteStateAt) / 1000, 0.10) : 0;
+        const scale = game.clientWidth / Math.max(1, Number(s.gameWidth || game.clientWidth));
+        const predictedX = (s.obstacleX - s.speed * elapsed) * scale;
+        const predictY = (yy, vv) => Math.max(0, yy + vv * elapsed - 0.5 * gravity * elapsed * elapsed);
+        obstacle.style.left = predictedX + 'px';
+        dino.style.bottom = (groundHeight + predictY(s.y1, s.vy1)) + 'px';
+        friendDino.style.bottom = (groundHeight + predictY(s.y2, s.vy2)) + 'px';
+      }
+      remoteAnim = requestAnimationFrame(render);
+    };
+    remoteAnim = requestAnimationFrame(render);
+  }
+  function applyRemoteState(s) {
+    remoteState = s;
+    currentObstacleType = obstacleCatalog.find(type => type.id === s.obstacleType) || obstacleCatalog[0];
+    applyObstacleAppearance();
+    remoteStateAt = performance.now();
+    score = Number(s.score || 0);
+    scoreText.textContent = score;
+    hostName = s.hostName || 'Host'; hostSkin = s.hostSkin || 'dino';
+    guestName = s.guestName || myName(); guestSkin = s.guestSkin || selectedSkin;
+    syncLabels();
+    pauseButton.disabled = !s.running && !s.paused;
+    pauseButton.textContent = s.paused ? '▶' : 'Ⅱ';
+    pauseButton.setAttribute('aria-label', s.paused ? 'Request resume' : 'Request pause');
+    if (s.running && s.paused) {
+      running = true; paused = true; gameOver = false;
+      setOverlay('Game paused', 'The host paused the shared game.', 'Waiting for host…', true);
+      message.textContent = 'Game paused by the host.';
+    } else if (s.running) {
+      running = true; paused = false; gameOver = false;
+      overlay.classList.add('hidden');
+      startButton.disabled = true;
+      message.textContent = `Playing online with ${hostName}!`;
+    } else if (s.gameOver) {
+      running = false; paused = false; gameOver = true;
+      if (!awardedRemoteRounds.has(s.roundId)) {
+        awardedRemoteRounds.add(s.roundId);
+        coins += Number(s.earned || 1);
+        coinsText.textContent = `${coins} 🪙`;
+        persistProgress(); refreshSkins();
+      }
+      pauseButton.disabled = true;
+      message.textContent = `Round over! Shared score: ${score}. You earned ${s.earned || 1} coins.`;
+      setOverlay('Game Over!', `You and ${hostName} scored ${score}. The host can start another round.`, 'Waiting for host…', true);
+    } else {
+      running = false; paused = false; gameOver = false;
+      setOverlay('Room connected!', 'You are in the room. Wait for the host to start the shared game.', 'Waiting for host…', true);
+      message.textContent = `Connected to ${hostName}. Waiting for the game to start.`;
+    }
+  }
+  function handleData(data) {
+    if (!data || typeof data !== 'object') return;
+    if (role === 'host') {
+      if (data.type === 'hello') {
+        guestName = String(data.name || 'Friend').slice(0, 18);
+        guestSkin = skins[data.skin] ? data.skin : 'dino';
+        syncLabels(); broadcastState(true);
+        setRoomStatus(`${guestName} joined room ${roomCode}. You can start the game!`);
+        message.textContent = `${guestName} joined the room. Ready when you are!`;
+      } else if (data.type === 'jump') {
+        if (running && !paused && !jumping2) { vy2 = jumpPower; jumping2 = true; }
+      } else if (data.type === 'pauseRequest') {
+        togglePause(true);
+      } else if (data.type === 'profile') {
+        guestName = String(data.name || 'Friend').slice(0, 18);
+        guestSkin = skins[data.skin] ? data.skin : 'dino';
+        syncLabels(); broadcastState(true);
+      }
+    } else if (role === 'guest') {
+      if (data.type === 'state') applyRemoteState(data);
+    }
+  }
+  function attachConnection(conn, hostSide) {
+    if (hostSide && connected) { conn.close(); return; }
+    connection = conn;
+    conn.on('open', () => {
+      connected = true;
+      if (hostSide) {
+        guestName = String(conn.metadata?.username || 'Friend').slice(0,18);
+        guestSkin = skins[conn.metadata?.skin] ? conn.metadata.skin : 'dino';
+        syncLabels();
+        setRoomStatus(`${guestName} connected to room ${roomCode}. Start the game when you're ready.`);
+        conn.send({type:'hello', name:myName(), skin:selectedSkin});
+        broadcastState(true);
+      } else {
+        setRoomStatus(`Connected to room ${roomCode}. Waiting for the host to start.`);
+        message.textContent = 'Connected! Waiting for your friend to start the game.';
+        conn.send({type:'hello', name:myName(), skin:selectedSkin});
+        beginRemoteRenderer();
+      }
+    });
+    conn.on('data', handleData);
+    conn.on('close', () => {
+      if (connection !== conn) return;
+      connected = false; connection = null; cancelAnimationFrame(remoteAnim);
+      if (role === 'guest') {
+        running = false; paused = false; role = 'solo';
+        pauseButton.disabled = true;
+        setOverlay('Disconnected', 'The connection to the host was lost. You can play solo or join another room.', 'Play Solo');
+      }
+      syncLabels();
+      setRoomStatus('Player disconnected. You are no longer connected to the room.');
+      if (role === 'host') message.textContent = 'Your friend disconnected. You can keep playing solo.';
+    });
+    conn.on('error', err => setRoomStatus(`Connection error: ${err?.message || 'please try again'}`));
+  }
+  function destroyNetwork() {
+    connected = false; remoteState = null;
+    if (connection) { try { connection.close(); } catch (_) {} connection = null; }
+    if (peer) { try { peer.destroy(); } catch (_) {} peer = null; }
+    cancelAnimationFrame(remoteAnim);
+    role = 'solo'; roomCode = '';
+  }
+
+  function refreshGameDisplay() {
+    dino.style.bottom = (groundHeight + y1) + 'px';
+    friendDino.style.bottom = (groundHeight + y2) + 'px';
+    obstacle.style.left = obstacleX + 'px';
+    scoreText.textContent = score;
+  }
   function reset() {
     cancelAnimationFrame(raf);
-    y = 0; velocity = 0; jumping = false; paused = false; score = 0; speed = 290; passed = false;
+    roundId++;
+    y1 = 0; vy1 = 0; y2 = 0; vy2 = 0; jumping1 = false; jumping2 = false;
+    paused = false; gameOver = false; score = 0; speed = 290;
+    obstacleX = game.clientWidth + 40;
+    currentObstacleType = obstacleCatalog[0];
+    applyObstacleAppearance();
     pauseButton.disabled = false;
     pauseButton.textContent = 'Ⅱ';
     pauseButton.setAttribute('aria-label', 'Pause game');
     pauseButton.title = 'Pause game';
-    obstacleX = game.clientWidth + 40;
-    scoreText.textContent = '0';
-    dino.style.bottom = groundHeight + 'px';
-    obstacle.style.left = obstacleX + 'px';
-    message.textContent = 'Go! Time your jumps carefully.';
-    overlay.classList.add('hidden');
-    running = true; lastTime = 0;
+    refreshGameDisplay();
+    message.textContent = connected ? `Running with ${guestName}! Jump to avoid the cactus.` : 'Go! Time your jumps carefully.';
+    overlay.classList.add('hidden'); startButton.disabled = false;
+    running = true; lastTime = 0; lastBroadcast = 0;
     game.focus({preventScroll:true});
+    broadcastState(true);
     raf = requestAnimationFrame(update);
   }
   function jump() {
-    if (!running || paused) return;
-    if (!jumping) { velocity = jumpPower; jumping = true; }
+    if (!running || paused || gameOver) return;
+    if (role === 'guest') { send({type:'jump'}); return; }
+    if (!jumping1) { vy1 = jumpPower; jumping1 = true; }
   }
-  function togglePause() {
-    if (!running) return;
+  function togglePause(fromNetwork = false) {
+    if (role === 'guest' && !fromNetwork) { send({type:'pauseRequest'}); return; }
+    if (!running && !paused) return;
     paused = !paused;
     if (paused) {
       cancelAnimationFrame(raf);
@@ -123,10 +511,7 @@
       pauseButton.setAttribute('aria-label', 'Resume game');
       pauseButton.title = 'Resume game';
       message.textContent = 'Game paused. Press ▶ to carry on.';
-      overlayTitle.textContent = 'Paused';
-      overlayText.textContent = 'Take a breather — your run is waiting.';
-      startButton.textContent = 'Resume Game';
-      overlay.classList.remove('hidden');
+      setOverlay('Paused', 'Take a breather — your run is waiting.', 'Resume Game');
     } else {
       overlay.classList.add('hidden');
       pauseButton.textContent = 'Ⅱ';
@@ -135,83 +520,266 @@
       message.textContent = 'Back to it!';
       lastTime = 0;
       raf = requestAnimationFrame(update);
-      game.focus({preventScroll:true});
     }
+    broadcastState(true);
   }
   function endGame() {
-    running = false;
-    paused = false;
+    running = false; paused = false; gameOver = true;
     pauseButton.disabled = true;
     pauseButton.textContent = 'Ⅱ';
-    pauseButton.setAttribute('aria-label', 'Pause game');
     cancelAnimationFrame(raf);
     if (score > best) {
       best = score; bestText.textContent = best;
       try { localStorage.setItem('dinoDashBest', String(best)); } catch (_) {}
     }
-    message.textContent = `Run over! You scored ${score}.`;
-    overlayTitle.textContent = 'Game Over!';
-    overlayText.textContent = `You scored ${score}. ${score >= best && score > 0 ? 'New best score!' : 'Fancy another run?'}`;
-    startButton.textContent = 'Play Again';
-    overlay.classList.remove('hidden');
+    const earned = Math.max(1, Math.floor(score / 2) + 1);
+    coins += earned;
+    coinsText.textContent = `${coins} 🪙`;
+    persistProgress(); refreshSkins();
+    message.textContent = `Run over! You scored ${score} and earned ${earned} coins.`;
+    setOverlay('Game Over!', `You scored ${score}. ${score >= best && score > 0 ? 'Great run!' : 'Fancy another run?'}`, 'Play Again');
+    broadcastState(true);
+  }
+  function intersectsPlayer(playerX, playerY) {
+    const hazard = currentObstacleType || obstacleCatalog[0];
+    const horizontal =
+      obstacleX + hazard.width - 7 > playerX + 9 &&
+      obstacleX + 7 < playerX + 52 - 8;
+    // Heights are relative to the ground. Low obstacles are jumped over;
+    // flying hazards sit above the ground and are safest when the runner stays low.
+    const playerBottom = playerY;
+    const playerTop = playerY + 55;
+    const hazardBottom = hazard.lift;
+    const hazardTop = hazard.lift + hazard.height;
+    const vertical =
+      playerBottom + 7 < hazardTop - 4 &&
+      playerTop - 7 > hazardBottom + 4;
+    return horizontal && vertical;
   }
   function update(time) {
-    if (!running || paused) return;
+    if (!running || paused || (role === 'guest')) return;
     const dt = lastTime ? Math.min((time - lastTime) / 1000, 0.03) : 0;
     lastTime = time;
-
-    velocity -= gravity * dt;
-    y += velocity * dt;
-    if (y <= 0) { y = 0; velocity = 0; jumping = false; }
-    dino.style.bottom = (groundHeight + y) + 'px';
+    vy1 -= gravity * dt; y1 += vy1 * dt;
+    if (y1 <= 0) { y1 = 0; vy1 = 0; jumping1 = false; }
+    const hasFriend = connected && role === 'host';
+    if (hasFriend) {
+      vy2 -= gravity * dt; y2 += vy2 * dt;
+      if (y2 <= 0) { y2 = 0; vy2 = 0; jumping2 = false; }
+    } else { y2 = 0; vy2 = 0; }
 
     obstacleX -= speed * dt;
-    if (obstacleX < -48) {
+    if (obstacleX < -(currentObstacleType.width || 48)) {
       obstacleX = game.clientWidth + 20 + Math.random() * 100;
-      score++; passed = false;
+      chooseNextObstacle();
+      score++;
       scoreText.textContent = score;
       speed = Math.min(480, 290 + score * 9);
       if (score % 5 === 0) message.textContent = `Nice running! Speed level ${Math.floor((speed - 290) / 9) + 1}.`;
     }
-    obstacle.style.left = obstacleX + 'px';
-
-    const gameRect = game.getBoundingClientRect();
-    const dinoRect = dino.getBoundingClientRect();
-    const cactusRect = obstacle.getBoundingClientRect();
-    // Slightly forgiving hitboxes make the game feel fair.
-    const hitX = dinoRect.right - 10 > cactusRect.left + 7 &&
-                 dinoRect.left + 10 < cactusRect.right - 6;
-    const hitY = dinoRect.bottom - 7 > cactusRect.top + 5 &&
-                 dinoRect.top + 8 < cactusRect.bottom - 3;
-    if (hitX && hitY) { endGame(); return; }
+    refreshGameDisplay();
+    const left1 = game.clientWidth * 0.18;
+    const left2 = game.clientWidth * 0.72 - 26;
+    if (intersectsPlayer(left1, y1) || (hasFriend && intersectsPlayer(left2, y2))) { endGame(); return; }
+    if (connected && time - lastBroadcast > 40) { broadcastState(); lastBroadcast = time; }
     raf = requestAnimationFrame(update);
   }
 
-  startButton.addEventListener('click', (event) => {
+  // Skin selection and saved profile
+  document.querySelectorAll('.skin').forEach(button => {
+    button.addEventListener('click', () => {
+      const id = button.dataset.skin, cost = Number(button.dataset.cost);
+      if (!ownedSkins.has(id)) {
+        if (coins < cost) return;
+        coins -= cost; ownedSkins.add(id);
+      }
+      selectedSkin = id; coinsText.textContent = `${coins} 🪙`;
+      persistProgress(); refreshSkins(); syncLabels();
+      if (connected) {
+        if (role === 'guest') send({type:'profile', name:myName(), skin:selectedSkin});
+        else if (role === 'host') broadcastState(true);
+      }
+    });
+  });
+  usernameInput.addEventListener('change', () => {
+    persistProgress(); syncLabels();
+    if (connected) {
+      if (role === 'guest') send({type:'profile', name:myName(), skin:selectedSkin});
+      else if (role === 'host') broadcastState(true);
+    }
+  });
+  syncLabels(); refreshSkins(); applyObstacleAppearance();
+
+  function randomRoomCode() {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    return 'DINO' + Array.from({length:4}, () => alphabet[Math.floor(Math.random()*alphabet.length)]).join('');
+  }
+  let peerLibraryLoading = false;
+  let peerLibraryCallbacks = [];
+  function loadPeerLibrary(callback) {
+    if (typeof window.Peer === 'function') { callback(); return; }
+    peerLibraryCallbacks.push(callback);
+    if (peerLibraryLoading) return;
+    peerLibraryLoading = true;
+    setRoomStatus('Loading online multiplayer…');
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js';
+    script.onload = () => {
+      peerLibraryLoading = false;
+      const callbacks = peerLibraryCallbacks.splice(0);
+      if (typeof window.Peer === 'function') callbacks.forEach(fn => fn());
+      else {
+        setRoomStatus('Could not load multiplayer. Check your internet connection and try again.');
+        createRoomButton.disabled = false; joinButton.disabled = false;
+      }
+    };
+    script.onerror = () => {
+      peerLibraryLoading = false; peerLibraryCallbacks = [];
+      setRoomStatus('Could not load multiplayer. Check your internet connection and try again.');
+      createRoomButton.disabled = false; joinButton.disabled = false;
+    };
+    document.head.appendChild(script);
+  }
+  function createRoom() {
+    createRoomButton.disabled = true;
+    loadPeerLibrary(createRoomNow);
+  }
+  function createRoomNow() {
+    if (typeof window.Peer !== 'function') {
+      createRoomButton.disabled = false;
+      setRoomStatus('Could not load the online connection library. Check your internet connection.');
+      return;
+    }
+    destroyNetwork();
+    running = false; paused = false; gameOver = false;
+    role = 'host'; hostName = myName(); hostSkin = selectedSkin;
+    setRoomStatus('Connecting to the room service…');
+    createRoomButton.disabled = true;
+    let attempts = 0;
+    const tryCreate = () => {
+      attempts++;
+      roomCode = randomRoomCode();
+      roomCodeInput.value = roomCode;
+      const thisPeer = new Peer('dinodash-' + roomCode.toLowerCase(), {debug:1});
+      peer = thisPeer;
+      let retrying = false;
+      thisPeer.on('open', () => {
+        if (peer !== thisPeer) return;
+        createRoomButton.disabled = false;
+        setRoomStatus(`Room ${roomCode} is ready. Share this code with your friend.`);
+        setOverlay('Room ready!', 'Share your room code with your friend. Start the game when you are both ready.', 'Start Game');
+        message.textContent = `Your room code is ${roomCode}. Waiting for your friend…`;
+        syncLabels();
+      });
+      thisPeer.on('connection', conn => {
+        if (peer !== thisPeer) { conn.close(); return; }
+        if (connected) { conn.close(); setRoomStatus('This room already has a player.'); return; }
+        attachConnection(conn, true);
+      });
+      thisPeer.on('error', err => {
+        if (peer !== thisPeer) return;
+        if (err && err.type === 'unavailable-id' && attempts < 4 && !retrying) {
+          retrying = true;
+          try { thisPeer.destroy(); } catch (_) {}
+          tryCreate();
+          return;
+        }
+        createRoomButton.disabled = false;
+        const reason = err?.type === 'network' ? 'Network error. Check your internet connection.' :
+          err?.type === 'peer-unavailable' ? 'That room could not be found. Check the code and try again.' :
+          `Could not create room (${err?.type || 'connection error'}). Try again.`;
+        setRoomStatus(reason);
+      });
+    };
+    tryCreate();
+  }
+  function joinRoom() {
+    joinButton.disabled = true;
+    loadPeerLibrary(joinRoomNow);
+  }
+  function joinRoomNow() {
+    if (typeof window.Peer !== 'function') {
+      joinButton.disabled = false;
+      setRoomStatus('Could not load the online connection library. Check your internet connection.');
+      return;
+    }
+    const code = roomCodeInput.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0,12);
+    if (!code) { joinButton.disabled = false; setRoomStatus('Enter your friend’s room code first.'); return; }
+    destroyNetwork();
+    role = 'guest'; roomCode = code; roomCodeInput.value = code;
+    hostName = 'Host'; hostSkin = 'dino';
+    running = false; paused = false; gameOver = false;
+    setRoomStatus(`Connecting to room ${code}…`);
+    setOverlay('Joining room…', 'Looking for your friend’s game.', 'Connecting…', true);
+    joinButton.disabled = true;
+    peer = new Peer(undefined, {debug:1});
+    const thisPeer = peer;
+    thisPeer.on('open', () => {
+      if (peer !== thisPeer) return;
+      const conn = thisPeer.connect('dinodash-' + code.toLowerCase(), {
+        reliable:true,
+        metadata:{username:myName(), skin:selectedSkin}
+      });
+      attachConnection(conn, false);
+      // A timeout helps show a clear message if the code is wrong or the host is offline.
+      window.setTimeout(() => {
+        if (peer === thisPeer && !connected) {
+          setRoomStatus(`Could not connect to ${code}. Check the code and make sure your friend has the game open.`);
+          setOverlay('Could not join', 'Check the room code and ask your friend to create the room again if needed.', 'Try Again');
+        }
+      }, 12000);
+    });
+    thisPeer.on('error', err => {
+      if (peer !== thisPeer) return;
+      joinButton.disabled = false;
+      setRoomStatus(`Connection issue: ${err?.type || 'network error'}. Check your internet and room code.`);
+    });
+    thisPeer.on('close', () => { joinButton.disabled = false; });
+  }
+  createRoomButton.addEventListener('click', createRoom);
+  joinButton.addEventListener('click', joinRoom);
+  copyRoomButton.addEventListener('click', async () => {
+    const code = roomCodeInput.value.trim();
+    if (!code) { setRoomStatus('Create a room first, or enter a friend’s code.'); return; }
+    try {
+      await navigator.clipboard.writeText(code);
+      setRoomStatus(`Copied room code ${code}. Send it to your friend.`);
+    } catch (_) {
+      setRoomStatus(`Your room code is ${code}. Select the code box and copy it to share.`);
+      roomCodeInput.focus(); roomCodeInput.select();
+    }
+  });
+
+  startButton.addEventListener('click', event => {
     event.stopPropagation();
+    if (role === 'guest') {
+      if (paused) send({type:'pauseRequest'});
+      return;
+    }
     if (paused) togglePause(); else reset();
   });
-  pauseButton.addEventListener('click', (event) => {
+  pauseButton.addEventListener('click', event => {
     event.stopPropagation();
-    togglePause();
+    if (role === 'guest') send({type:'pauseRequest'}); else togglePause();
   });
-  game.addEventListener('pointerdown', (event) => {
+  game.addEventListener('pointerdown', event => {
     if (event.target === startButton || event.target === pauseButton || !running || paused) return;
     jump();
   });
-  document.addEventListener('keydown', (event) => {
+  document.addEventListener('keydown', event => {
     if (event.code === 'Space' || event.code === 'ArrowUp') {
       event.preventDefault();
-      if (event.repeat) return;
-      if (paused) return;
-      if (!running) reset(); else jump();
+      if (event.repeat || paused) return;
+      if (!running) {
+        if (role !== 'guest') reset();
+      } else jump();
     }
   });
-  // Keep the cactus positioned correctly if the browser window changes size.
   window.addEventListener('resize', () => {
-    if (!running) obstacleX = game.clientWidth + 40;
+    if (!running && role !== 'guest') obstacleX = game.clientWidth + 40;
   });
 })();
+
 </script>
 </body>
 </html>
